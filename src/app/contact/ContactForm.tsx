@@ -99,7 +99,7 @@ export default function ContactForm(): React.ReactElement | null {
       clientErrors={clientErrors}
       serverErrors={[]}
       succeeded={localSucceeded || state.succeeded}
-      formspreeErrors={state.errors ?? undefined}
+      formspreeErrors={state.errors ? (Array.isArray(state.errors) ? state.errors : [state.errors]) : undefined}
       submitting={state.submitting}
     />
   );
