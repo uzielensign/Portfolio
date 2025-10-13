@@ -24,7 +24,7 @@ function Harness() {
 
 beforeEach(() => {
   // Ensure fetch is reset for each test
-  // @ts-ignore
+  // @ts-expect-error: global.fetch is being deleted to mock fetch in tests
   delete global.fetch;
 });
 
@@ -63,6 +63,6 @@ test('submits successfully when fields are valid', async () => {
   expect(await screen.findByText(/SUCCEEDED/i)).toBeInTheDocument();
 
   // clean up
-  // @ts-expect-error
+  // @ts-expect-error: global.fetch is being deleted to clean up after fetch mocking
   delete global.fetch;
 });
