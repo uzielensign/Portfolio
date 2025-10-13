@@ -9,11 +9,19 @@ test('shows warning when NEXT_PUBLIC_FORMSPREE_FORM_ID missing', async () => {
   // Ensure env var is not set for this test
   delete process.env.NEXT_PUBLIC_FORMSPREE_FORM_ID;
 
+  // Stub the runtime config fetch so the component knows the server has no Formspree ID.
+  vi.stubGlobal('fetch', vi.fn(async () => ({ json: async () => ({ configured: false }) })));
+
   const { default: ContactForm } = await import('../app/contact/ContactForm');
   render(<ContactForm />);
 
-  expect(screen.getByText(/Contact form is not configured/i)).toBeInTheDocument();
-  expect(screen.getByText(/To enable the contact form/i)).toBeInTheDocument();
+  // Wait for the message to appear after the component finishes the runtime check.
+  expect(await screen.findByText(/Contact form is not configured/i)).toBeInTheDocument();
+  expect(await screen.findByText(/To enable the contact form/i)).toBeInTheDocument();
+
+  // Clean up the global stub so it doesn't affect other tests.
+  // @ts-ignore
+  delete global.fetch;
 });
 
 test('shows message required validation when submitting empty message', async () => {
