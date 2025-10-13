@@ -20,7 +20,7 @@ test('shows warning when NEXT_PUBLIC_FORMSPREE_FORM_ID missing', async () => {
   expect(await screen.findByText(/To enable the contact form/i)).toBeInTheDocument();
 
   // Clean up the global stub so it doesn't affect other tests.
-  // @ts-ignore
+  // @ts-expect-error - fetch exists in global but TS may not recognize it in the test environment mock cleanup
   delete global.fetch;
 });
 
