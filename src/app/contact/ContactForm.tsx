@@ -1,8 +1,8 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { useForm } from "@formspree/react";
 import ContactFormUI from "./ContactFormUI";
 import { useContactForm } from "./useContactForm";
+import { useForm } from "@formspree/react";
 
 // Read the Formspree form ID from environment; the component will require this to be set.
 // We no longer rely solely on a build-time NEXT_PUBLIC var. We'll detect at runtime whether
@@ -23,11 +23,20 @@ export default function ContactForm(): React.ReactElement | null {
   // Compute normalized form ID once. Even if empty, calling hooks below must be unconditional to satisfy rules-of-hooks.
   const normalizedId = ENV_FORMSPREE_FORM_ID && ENV_FORMSPREE_FORM_ID.startsWith("f/")
     ? ENV_FORMSPREE_FORM_ID.slice(2)
-    : (ENV_FORMSPREE_FORM_ID || "");
+    : "";
 
-  // Hooks must be called unconditionally at the top level.
-  // `useForm` will receive an empty string when no public ID exists; that's acceptable for preserving hook order.
-  const [state] = useForm(normalizedId);
+  // Use Formspree's hook only when a public ID exists. This avoids invoking Formspree's
+  // hook during server-side prerender/build when the public ID is not available — that
+  // previously caused the build error: "You must provide a form key or hashid".
+  // The env var used here is static for the build, so the conditional hook call is stable
+  // across renders in a given environment (no runtime branch flipping is expected).
+  type FormspreeStateShape = { submitting: boolean; succeeded: boolean; errors?: unknown };
+  let formspreeState: FormspreeStateShape = { submitting: false, succeeded: false, errors: undefined };
+  if (normalizedId) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    formspreeState = useForm(normalizedId)[0];
+  }
+
   const {
     formRef,
     clientErrors,
@@ -58,14 +67,19 @@ export default function ContactForm(): React.ReactElement | null {
   }, [mode]);
 
   if (mode === 'loading') {
-    // Avoid layout shift; show nothing until we know which UI to show
-    return null;
+    // Avoid layout shift by rendering a small skeleton box while we check server config.
+    return (
+      <div className="mx-auto max-w-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm" aria-live="polite">
+        <div className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">Loading contact form…</div>
+        <p className="text-sm text-gray-700 dark:text-gray-300">Checking configuration…</p>
+      </div>
+    );
   }
 
   if (mode === 'none') {
     return (
       <div className="mx-auto max-w-xl bg-yellow-50 border border-yellow-300 rounded-lg p-6 shadow-sm">
-        <h3 className="text-xl font-semibold mb-2 text-yellow-800">Contact form is not configured</h3>
+        <div className="text-xl font-semibold mb-2 text-yellow-800">Contact form is not configured</div>
         <p className="text-sm text-yellow-700">This site is missing the required Formspree configuration. To enable the contact form, set the <code className="bg-yellow-100 px-1 rounded">NEXT_PUBLIC_FORMSPREE_FORM_ID</code> environment variable to your Formspree form ID and restart the app.</p>
         <p className="mt-3 text-sm text-yellow-700">Example (zsh):</p>
         <pre className="mt-2 p-2 rounded bg-yellow-100 text-sm">{'export NEXT_PUBLIC_FORMSPREE_FORM_ID="f/yourFormId"'}</pre>
@@ -98,9 +112,9 @@ export default function ContactForm(): React.ReactElement | null {
       isProcessing={isProcessing}
       clientErrors={clientErrors}
       serverErrors={[]}
-      succeeded={localSucceeded || state.succeeded}
-      formspreeErrors={state.errors ? (Array.isArray(state.errors) ? state.errors : [state.errors]) : undefined}
-      submitting={state.submitting}
+      succeeded={localSucceeded || formspreeState.succeeded}
+      formspreeErrors={formspreeState.errors ? (Array.isArray(formspreeState.errors) ? formspreeState.errors : [formspreeState.errors]) : undefined}
+      submitting={formspreeState.submitting}
     />
   );
 }

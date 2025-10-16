@@ -63,15 +63,27 @@ export default function RootLayout({
           {themeInit}
         </Script>
 
-        {/* Fixed ThemeToggle in upper right corner */}
-        <div className="fixed top-4 right-4 z-50">
-          <ThemeToggleWrapper />
+        {/* Fixed ThemeToggle in bottom right corner */}
+        <div
+          className="fixed z-50"
+          style={{
+            bottom: "calc(1rem + env(safe-area-inset-bottom))",
+            right: "calc(1rem + env(safe-area-inset-right))",
+          }}
+        >
+          {/* Add small padding so the touch target is comfortable on mobile */}
+          <div className="p-1 sm:p-2">
+            <ThemeToggleWrapper />
+          </div>
         </div>
 
         {/* Use shared Header component that renders plain text on /about */}
         <Header />
 
-        {children}
+        {/* Ensure page content is offset by the fixed header using the CSS variable set by the header measurement. */}
+        <main style={{ paddingTop: 'var(--header-height)' }}>
+          {children}
+        </main>
       </body>
     </html>
   );
