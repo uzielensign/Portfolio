@@ -9,6 +9,19 @@ export async function POST(req: Request) {
     // Determine Formspree form ID from server env var (prefer server-only var), allow either 'f/...' or plain id
     const envId = process.env.FORMSPREE_FORM_ID || process.env.NEXT_PUBLIC_FORMSPREE_FORM_ID;
     if (!envId) {
+      // In development we accept form submissions as a mock so local testing works without Formspree.
+      if (process.env.NODE_ENV !== 'production') {
+        // Optionally log the submission server-side for debugging.
+        try {
+          const debug: Record<string, string> = {};
+          formData.forEach((v, k) => {
+            debug[k] = String(v);
+          });
+          console.info('[api/contact] dev mock received submission', debug);
+        } catch {}
+        return NextResponse.json({ ok: true, mocked: true }, { status: 200 });
+      }
+
       return NextResponse.json({ error: 'Formspree form ID is not configured on the server.' }, { status: 500 });
     }
     const normalized = envId.startsWith('f/') ? envId.slice(2) : envId;
@@ -38,4 +51,11 @@ export async function POST(req: Request) {
     const message = String(err instanceof Error ? err.message : err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+// Canonical GET: expose whether the form is configured (server-only info)
+export async function GET() {
+  const envId = process.env.FORMSPREE_FORM_ID || process.env.NEXT_PUBLIC_FORMSPREE_FORM_ID;
+  const configured = Boolean(envId && String(envId).trim().length > 0);
+  return NextResponse.json({ configured });
 }

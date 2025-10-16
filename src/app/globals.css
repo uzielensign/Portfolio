@@ -5,6 +5,26 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* tuned defaults: smaller on very small screens, increase at tablet/desktop breakpoints */
+  --header-height: 64px; /* default for small screens */
+  /* defaults for marquee helper variables to satisfy static analyzers */
+  --marquee-start: -50%;
+  --marquee-end: 0%;
+  --marquee-duration: 10s;
+}
+
+/* Slightly larger header height on medium screens */
+@media (min-width: 768px) {
+  :root {
+    --header-height: 72px; /* tablet */
+  }
+}
+
+/* Larger header for desktop / wide screens */
+@media (min-width: 1024px) {
+  :root {
+    --header-height: 80px; /* desktop */
+  }
 }
 
 /* Respect user's color scheme as a fallback; the app also supports toggling the `dark` class on <html> */
@@ -22,6 +42,13 @@ html,
 body,
 #__next {
   height: 100%;
+}
+
+/* Smooth in-page scrolling and offset for sticky header */
+html {
+  scroll-behavior: smooth;
+  /* Ensure anchor targets are not hidden behind the sticky header */
+  scroll-padding-top: var(--header-height);
 }
 
 body {
@@ -116,6 +143,40 @@ body {
     background-position: 50% 0;
   }
 }
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes slide-in-left {
+  0% {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+  60% {
+    transform: translateX(10%);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+/* Marquee: continuous left-to-right loop. Start and end are driven by CSS variables so JS can set exact px values for natural exit timing. */
+@keyframes marquee-right {
+  0% {
+    transform: translateX(var(--marquee-start, -50%));
+  }
+  100% {
+    transform: translateX(var(--marquee-end, 0%));
+  }
+}
+
 .animate-blob1 {
   animation: blob1 16s ease-in-out infinite;
 }
@@ -136,62 +197,142 @@ body {
 .animate-fadein {
   animation: fadeIn 1.2s ease;
 }
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+
+/* Small utility to slide content in from the left and keep it centered. Use inline-block so transform centers correctly. */
+.slide-in-left {
+  display: inline-block;
+  will-change: transform, opacity;
+  animation: slide-in-left 900ms cubic-bezier(.22,.9,.1,1) both;
 }
 
-/* Animated gradient background for hero section */
-.hero-gradient-bg {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  width: 100vw;
-  height: 100vh;
-  pointer-events: none;
-  background: #111; /* minimal, dark solid background */
-  opacity: 0.7;
+/* Marquee: continuous left-to-right loop. Adjusted so the track starts visible (0%) and moves to 50% (one copy width).
+   Usage:
+   <div class="marquee"><div class="marquee-track"><span>Text</span><span aria-hidden>Text</span></div></div>
+*/
+.marquee {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  justify-content: center; /* center the visible content horizontally */
+  align-items: center;
+  /* fade out edges for a smoother disappearance */
+  mask-image: linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 8%, rgba(0,0,0,1) 92%, rgba(0,0,0,0) 100%);
+}
+.marquee-track {
+  display: inline-flex;
+  white-space: nowrap;
+  align-items: center;
+  will-change: transform;
+  /* Start centered by default via CSS variable; JS will override with px values for precise control. */
+  transform: translateX(var(--marquee-start, -50%));
+  animation-name: marquee-right;
+  animation-duration: var(--marquee-duration, 10s);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.marquee-item {
+  display: inline-block;
+  padding: 0 2rem; /* spacing between repeats */
+  font-weight: 600;
 }
 
-img.person-typing-svg {
-  /* In light mode, SVG background is always pure white */
-  filter: none;
-}
-.dark img.person-typing-svg {
-  /* In dark mode, invert SVG for a dark background and adapted colors */
-  filter: invert(1) hue-rotate(180deg) brightness(0.8) contrast(1.1);
-}
-.dark-mode-only {
-  display: none;
-}
-.dark .dark-mode-only {
-  display: inline;
-}
-
-/* Hide the animated illustration in light mode, show only in dark mode */
-.person-typing-svg .dark-mode-only {
-  display: none;
-}
-.dark .person-typing-svg .dark-mode-only {
-  display: inline;
-}
-
-/* Page title styling: black in light mode, animated gradient text in dark mode */
+/* Page title styling: use animated purple gradient in all modes */
 .page-title {
-  color: #000;
-}
-.dark .page-title {
-  /* animated gradient text in dark mode */
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+  /* Use the same gradient that was previously only applied in dark mode */
+  background: linear-gradient(90deg, #7c3aed, #8b5cf6, #ec4899);
   background-clip: text;
   -webkit-background-clip: text;
-  color: transparent;
+  color: transparent; /* show gradient via background-clip */
   background-size: 300% 300%;
   animation: gradient-move-smooth 4.6s ease-in-out infinite;
+}
+
+/* Optional: preserve a solid fallback color for non-supporting browsers via a CSS variable */
+:root {
+  --page-title-fallback: #000000;
+}
+html.dark {
+  --page-title-fallback: #ffffff;
+}
+
+/* About page heading tweaks: bring title closer to the card and adjust responsive spacing */
+.about-heading {
+  margin-bottom: 0.5rem; /* 8px */
+  letter-spacing: -0.015em;
+}
+@media (min-width: 768px) {
+  .about-heading {
+    margin-bottom: 0.75rem; /* 12px */
+  }
+  /* Slight pull-up so the heading visually overlaps the card edge a hair on larger screens */
+  .about-heading.pull-up {
+    transform: translateY(4px);
+  }
+}
+
+/* Slightly reduce top spacing on the frosted card when used on the About page */
+.about-card {
+  margin-top: 0.25rem; /* 4px */
+}
+
+/* Respect users who prefer reduced motion globally. This will disable animations,
+   transitions and transforms for users with the `prefers-reduced-motion: reduce` setting.
+   It also forces scroll-behavior to auto for those users. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    scroll-behavior: auto;
+  }
+
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    animation-play-state: paused !important;
+    -webkit-animation: none !important;
+    -webkit-transition: none !important;
+  }
+
+  /* Disable the blob/keyframe animations specifically as a fallback */
+  .animate-blob1,
+  .animate-blob2,
+  .animate-blob3,
+  .animate-gradient-move,
+  .animate-gradient-move-smooth,
+  .animate-fadein {
+    animation: none !important;
+  }
+
+  .slide-in-left {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  .marquee-track {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+/* Optional utility: add `class="reduced-motion"` to any container to
+   force reduced-motion behavior for its children regardless of system settings. */
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+}
+
+/* Helper: prevent gradient inline blocks from adding extra vertical height
+   Use on inline-block gradient text spans: keeps font-size inherited and line-height tight. */
+.gradient-inline-fix {
+  display: inline !important; /* keep it inline to avoid creating an extra inline-block box */
+  vertical-align: middle !important;
+  line-height: 1 !important; /* collapse extra leading */
+  padding: 0 !important;
+  margin: 0 !important;
+  height: auto !important;
+  font-size: inherit !important;
 }
