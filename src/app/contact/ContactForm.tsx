@@ -15,23 +15,34 @@ type ServerConfigResponse = { configured: boolean };
 export default function ContactForm(): React.ReactElement | null {
   // runtime state: 'loading' while we check the server, 'client' when a public NEXT var exists
   // 'server' when only a server-side form id exists, or 'none' when not configured
-  const [mode, setMode] = useState<'loading' | 'client' | 'server' | 'none'>(() => {
-    // If the public NEXT var exists at build time, prefer client path immediately.
-    return ENV_FORMSPREE_FORM_ID ? 'client' : 'loading';
-  });
+  const [mode, setMode] = useState<"loading" | "client" | "server" | "none">(
+    () => {
+      // If the public NEXT var exists at build time, prefer client path immediately.
+      return ENV_FORMSPREE_FORM_ID ? "client" : "loading";
+    },
+  );
 
   // Compute normalized form ID once. Even if empty, calling hooks below must be unconditional to satisfy rules-of-hooks.
-  const normalizedId = ENV_FORMSPREE_FORM_ID && ENV_FORMSPREE_FORM_ID.startsWith("f/")
-    ? ENV_FORMSPREE_FORM_ID.slice(2)
-    : "";
+  const normalizedId =
+    ENV_FORMSPREE_FORM_ID && ENV_FORMSPREE_FORM_ID.startsWith("f/")
+      ? ENV_FORMSPREE_FORM_ID.slice(2)
+      : "";
 
   // Use Formspree's hook only when a public ID exists. This avoids invoking Formspree's
   // hook during server-side prerender/build when the public ID is not available — that
   // previously caused the build error: "You must provide a form key or hashid".
   // The env var used here is static for the build, so the conditional hook call is stable
   // across renders in a given environment (no runtime branch flipping is expected).
-  type FormspreeStateShape = { submitting: boolean; succeeded: boolean; errors?: unknown };
-  let formspreeState: FormspreeStateShape = { submitting: false, succeeded: false, errors: undefined };
+  type FormspreeStateShape = {
+    submitting: boolean;
+    succeeded: boolean;
+    errors?: unknown;
+  };
+  let formspreeState: FormspreeStateShape = {
+    submitting: false,
+    succeeded: false,
+    errors: undefined,
+  };
   if (normalizedId) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     formspreeState = useForm(normalizedId)[0];
@@ -43,53 +54,72 @@ export default function ContactForm(): React.ReactElement | null {
     isProcessing,
     localSucceeded,
     onSubmit,
+    isMocked,
   } = useContactForm();
 
   useEffect(() => {
-    if (mode === 'client') return; // already decided
+    if (mode === "client") return; // already decided
     let mounted = true;
     // Ask the server whether a Formspree ID is configured. This endpoint does NOT return the ID,
     // only a boolean indicating presence. That allows us to render a server-backed form without
     // exposing secrets in the client bundle.
-    fetch('/api/contact/config')
+    fetch("/api/contact/config")
       .then((res) => res.json())
       .then((data: ServerConfigResponse) => {
         if (!mounted) return;
-        setMode(data.configured ? 'server' : 'none');
+        setMode(data.configured ? "server" : "none");
       })
       .catch(() => {
         if (!mounted) return;
-        setMode('none');
+        setMode("none");
       });
     return () => {
       mounted = false;
     };
   }, [mode]);
 
-  if (mode === 'loading') {
+  if (mode === "loading") {
     // Avoid layout shift by rendering a small skeleton box while we check server config.
     return (
-      <div className="mx-auto max-w-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm" aria-live="polite">
-        <div className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">Loading contact form…</div>
-        <p className="text-sm text-gray-700 dark:text-gray-300">Checking configuration…</p>
+      <div
+        className="mx-auto max-w-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm"
+        aria-live="polite"
+      >
+        <div className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">
+          Loading contact form…
+        </div>
+        <p className="text-sm text-gray-700 dark:text-gray-300">
+          Checking configuration…
+        </p>
       </div>
     );
   }
 
-  if (mode === 'none') {
+  if (mode === "none") {
     return (
       <div className="mx-auto max-w-xl bg-yellow-50 border border-yellow-300 rounded-lg p-6 shadow-sm">
-        <div className="text-xl font-semibold mb-2 text-yellow-800">Contact form is not configured</div>
-        <p className="text-sm text-yellow-700">This site is missing the required Formspree configuration. To enable the contact form, set the <code className="bg-yellow-100 px-1 rounded">NEXT_PUBLIC_FORMSPREE_FORM_ID</code> environment variable to your Formspree form ID and restart the app.</p>
+        <div className="text-xl font-semibold mb-2 text-yellow-800">
+          Contact form is not configured
+        </div>
+        <p className="text-sm text-yellow-700">
+          This site is missing the required Formspree configuration. To enable
+          the contact form, set the{" "}
+          <code className="bg-yellow-100 px-1 rounded">
+            NEXT_PUBLIC_FORMSPREE_FORM_ID
+          </code>{" "}
+          environment variable to your Formspree form ID and restart the app.
+        </p>
         <p className="mt-3 text-sm text-yellow-700">Example (zsh):</p>
-        <pre className="mt-2 p-2 rounded bg-yellow-100 text-sm">{'export NEXT_PUBLIC_FORMSPREE_FORM_ID="f/yourFormId"'}</pre>
+        <pre className="mt-2 p-2 rounded bg-yellow-100 text-sm">
+          {'export NEXT_PUBLIC_FORMSPREE_FORM_ID="f/yourFormId"'}
+        </pre>
       </div>
     );
   }
 
   // For server mode we rely on our hook for submission/validation and for client mode we still
   // leverage Formspree state. Hooks are already invoked above.
-  if (mode === 'server') {
+  if (mode === "server") {
     return (
       <ContactFormUI
         formRef={formRef}
@@ -100,6 +130,7 @@ export default function ContactForm(): React.ReactElement | null {
         succeeded={localSucceeded}
         formspreeErrors={[]}
         submitting={false}
+        isMocked={isMocked}
       />
     );
   }
@@ -113,8 +144,15 @@ export default function ContactForm(): React.ReactElement | null {
       clientErrors={clientErrors}
       serverErrors={[]}
       succeeded={localSucceeded || formspreeState.succeeded}
-      formspreeErrors={formspreeState.errors ? (Array.isArray(formspreeState.errors) ? formspreeState.errors : [formspreeState.errors]) : undefined}
+      formspreeErrors={
+        formspreeState.errors
+          ? Array.isArray(formspreeState.errors)
+            ? formspreeState.errors
+            : [formspreeState.errors]
+          : undefined
+      }
       submitting={formspreeState.submitting}
+      isMocked={isMocked}
     />
   );
 }

@@ -8,6 +8,8 @@ export function useContactForm(endpoint = "/api/contact") {
   const [clientErrors, setClientErrors] = useState<ClientErrors>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [localSucceeded, setLocalSucceeded] = useState(false);
+  // Whether the server responded in dev "mock" mode (not forwarded to Formspree)
+  const [isMocked, setIsMocked] = useState(false);
 
   function validateEmail(email: string) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -16,6 +18,7 @@ export function useContactForm(endpoint = "/api/contact") {
   async function submitFromElement(formEl: HTMLFormElement | null) {
     if (!formEl) return false;
     setClientErrors({});
+    setIsMocked(false);
     setIsProcessing(true);
 
     const form = new FormData(formEl);
@@ -35,7 +38,8 @@ export function useContactForm(endpoint = "/api/contact") {
     if (!firstName) errors.firstName = "First name is required.";
     if (!lastName) errors.lastName = "Last name is required.";
     if (!email) errors.email = "Email is required.";
-    else if (!validateEmail(email)) errors.email = "Please enter a valid email address.";
+    else if (!validateEmail(email))
+      errors.email = "Please enter a valid email address.";
     if (!message) errors.message = "Message is required.";
 
     if (Object.keys(errors).length > 0) {
@@ -47,6 +51,18 @@ export function useContactForm(endpoint = "/api/contact") {
     try {
       const response = await fetch(endpoint, { method: "POST", body: form });
       if (response.ok) {
+        // Try to detect server dev/mock response which signals the submission wasn't forwarded
+        try {
+          const ct = response.headers.get("content-type") || "";
+          if (ct.includes("application/json")) {
+            const data = await response.clone().json();
+            if (data && data.mocked) {
+              setIsMocked(true);
+            }
+          }
+        } catch {
+          // ignore parse errors
+        }
         setLocalSucceeded(true);
         return true;
       } else {
@@ -67,12 +83,18 @@ export function useContactForm(endpoint = "/api/contact") {
             setClientErrors({ _server: String(data.error) });
           }
         } catch (jsonErr) {
-          console.error("[ContactForm] failed to parse /api/contact error response", jsonErr);
+          console.error(
+            "[ContactForm] failed to parse /api/contact error response",
+            jsonErr,
+          );
         }
         return false;
       }
     } catch (err) {
-      console.error("[ContactForm] programmatic submit fetch error to /api/contact", err);
+      console.error(
+        "[ContactForm] programmatic submit fetch error to /api/contact",
+        err,
+      );
       setClientErrors({ _server: "Network error while submitting the form." });
       return false;
     } finally {
@@ -91,6 +113,7 @@ export function useContactForm(endpoint = "/api/contact") {
     setClientErrors,
     isProcessing,
     localSucceeded,
+    isMocked,
     onSubmit,
   } as const;
 }

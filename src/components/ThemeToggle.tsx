@@ -11,18 +11,16 @@ export default function ThemeToggle({ isDark, toggleTheme }: Props) {
   const timeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
+    // Cleanup animation timeout on unmount
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, []);
 
   const handleClick = () => {
-    // trigger theme toggle (parent handles theme state)
-    toggleTheme();
-    // trigger a tiny local animation for feedback
-    setAnimating(true);
+    toggleTheme(); // Parent handles theme state
+    setAnimating(true); // Local animation for feedback
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    // cast to number for TS (window.setTimeout returns number in browsers)
     timeoutRef.current = window.setTimeout(() => {
       setAnimating(false);
       timeoutRef.current = null;
@@ -38,7 +36,7 @@ export default function ThemeToggle({ isDark, toggleTheme }: Props) {
       aria-pressed={isDark}
       title="Toggle theme"
     >
-      {/* Render both icons so server/client HTML match; CSS toggles visibility */}
+      {/* Render both icons for SSR/CSR match; CSS toggles visibility */}
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
